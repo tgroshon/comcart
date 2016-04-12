@@ -1,0 +1,8 @@
+[package]
+name = "comcart"
+version = "0.1.0"
+authors = ["Tommy Groshong <tgroshong@instructure.com>"]
+
+[dependencies]
+zip = "0.1.16"
+xml-rs = "0.3.0"
