@@ -1,20 +1,17 @@
 use std::str::FromStr;
-use std::io::{BufReader, Read, Seek, Result};
+use std::io::{BufReader};
 use std::collections::HashMap;
 
 use zip::read::{ZipFile};
 use xml::reader::{EventReader, XmlEvent};
 use xml::name::{OwnedName};
-use xml::attribute::{OwnedAttribute};
 
 use super::utils::Node;
 use super::utils::find_attr;
-use common::*;
+use common::{Module, ModuleItem};
 
 const MODULE_DEPTH: i32 = 5;
-const MODULE_TITLE_DEPTH: i32 = 6;
 const MODULE_ITEM_DEPTH: i32 = 6;
-const MODULE_ITEM_TITLE_DEPTH: i32 = 7;
 
 #[derive(Debug)]
 pub struct SparseModuleItem {
@@ -117,11 +114,11 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
             }
             Ok(XmlEvent::Characters(chars)) => {
                 if current_tag.local_name.as_str() == "title" {
-                    if depth == MODULE_TITLE_DEPTH {
+                    if depth == MODULE_DEPTH + 1 {
                         if let Some(module) = modules.get_mut(module_index) {
                             module.title = Some(chars);
                         }
-                    } else if depth == MODULE_ITEM_TITLE_DEPTH {
+                    } else if depth == MODULE_ITEM_DEPTH + 1 {
                         if let Some(module) = modules.get_mut(module_index) {
                             if let Some(module_item) = module.items.get_mut(module_item_index) {
                                 module_item.title = Some(chars);

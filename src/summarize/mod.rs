@@ -2,7 +2,7 @@ pub mod manifest;
 pub mod utils;
 
 use zip::{ZipArchive};
-use std::io::{BufReader, Read, Seek, Result};
+use std::io::{Read, Seek, Result};
 use common::Summary;
 
 pub fn summarize<R: Read + Seek>(mut archive: ZipArchive<R>) -> Result<Summary> {
