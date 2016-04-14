@@ -1,7 +1,7 @@
 extern crate zip;
 extern crate xml;
 
-use std::io::{BufReader, Result};
+use std::io::{Result};
 use std::fs::File;
 mod summarize;
 
@@ -20,22 +20,13 @@ fn main() {
     };
 }
 
-
-
 fn process(path: &str) -> Result<()> {
     let f = try!(File::open(path));
-    let mut zip_file = try!(zip::ZipArchive::new(f));
-    let manifest = try!(zip_file.by_name("imsmanifest.xml"));
+    let zip_file = try!(zip::ZipArchive::new(f));
+    let summary = try!(summarize::summarize(zip_file));
 
-    let buf = BufReader::new(manifest);
-    let summary = summarize::summarize_xml(buf);
-
-    println!("Found {} modules", summary.modules.len());
-    println!("Found {} modules contents", summary.modules_contents.len());
-    println!("Found {} resources", summary.resources.len());
-    for (key, _) in &summary.modules_contents {
-        println!("Key {}", key)
-    }
+    // println!("Found {} modules", summary.modules.len());
+    // println!("Found {} modules contents", summary.modules_contents.len());
+    // println!("Found {} resources", summary.resources.len());
     Ok(())
 }
-
