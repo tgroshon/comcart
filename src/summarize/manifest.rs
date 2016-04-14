@@ -62,10 +62,14 @@ impl SparseModule {
     }
 }
 
+struct StackTracker {
+    module_index: usize,
+    module_item_index: usize,
+}
+
 pub fn parse(manifest: ZipFile) -> Vec<Module> {
     let mut modules: Vec<SparseModule> = Vec::new();
-    let mut module_index = 0;
-    let mut module_item_index = 0;
+    let mut tracker = StackTracker { module_index: 0, module_item_index: 0 };
     let mut resources: HashMap<String, Node> = HashMap::new();
 
     let buffer = BufReader::new(manifest);
@@ -85,7 +89,7 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
                         if depth == MODULE_DEPTH {
                             modules.push(SparseModule::new());
                         } else if depth == MODULE_ITEM_DEPTH {
-                            if let Some(module) = modules.get_mut(module_index) {
+                            if let Some(module) = modules.get_mut(tracker.module_index) {
                                 let identifier_ref = find_attr("identifierref", &attributes);
                                 module.items.push(SparseModuleItem::new(identifier_ref));
                             }
@@ -104,10 +108,10 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
             Ok(XmlEvent::EndElement {name}) => {
                 if name.local_name.as_str() == "item" {
                     if depth == MODULE_DEPTH {
-                        module_index += 1;
-                        module_item_index = 0;
+                        tracker.module_index += 1;
+                        tracker.module_item_index = 0;
                     } else if depth == MODULE_ITEM_DEPTH {
-                        module_item_index += 1;
+                        tracker.module_item_index += 1;
                     }
                 }
                 ancestor_stack.pop();
@@ -125,12 +129,12 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
                 }
 
                 if depth == MODULE_DEPTH + 1 {
-                    if let Some(module) = modules.get_mut(module_index) {
+                    if let Some(module) = modules.get_mut(tracker.module_index) {
                         module.title = Some(chars);
                     }
                 } else if depth == MODULE_ITEM_DEPTH + 1 {
-                    if let Some(module) = modules.get_mut(module_index) {
-                        if let Some(module_item) = module.items.get_mut(module_item_index) {
+                    if let Some(module) = modules.get_mut(tracker.module_index) {
+                        if let Some(module_item) = module.items.get_mut(tracker.module_item_index) {
                             module_item.title = Some(chars);
                         }
                     }
@@ -146,3 +150,4 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
 
     modules.into_iter().map(|sparse_mod| sparse_mod.to_module(&resources)).collect::<Vec<Module>>()
 }
+
