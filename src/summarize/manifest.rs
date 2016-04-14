@@ -134,5 +134,6 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
             _ => {}
         }
     }
+
     modules.into_iter().map(|sparse_mod| sparse_mod.to_module(&resources)).collect::<Vec<Module>>()
 }

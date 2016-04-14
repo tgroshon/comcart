@@ -3,9 +3,13 @@ name = "comcart"
 version = "0.1.0"
 authors = ["Tommy Groshong <tgroshong@instructure.com>"]
 
-[lib]
-name = "comcart"
-path = "src/lib.rs"
+# [lib]
+# name = "comcart"
+# path = "src/lib.rs"
+
+# [[bin]]
+# name = "comcart"
+# path = "src/main.rs"
 
 [dependencies]
 zip = "0.1.16"

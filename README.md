@@ -6,7 +6,6 @@ TODO:
  - Parse pretty type from long-form type on resources
  - Get "General" module specifics
  - Break-out ugly manifest parsing match into functions
- - Break-out summarizing into mods
 
 Returns the following data:
 
