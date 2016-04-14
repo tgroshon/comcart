@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use std::io::{BufReader};
 use std::collections::HashMap;
 
@@ -73,13 +72,14 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
     let parser = EventReader::new(buffer);
 
     let mut depth = 0;
-    let mut current_tag = OwnedName::from_str("unmatchable:start").unwrap();
+    let mut ancestor_stack: Vec<OwnedName> = Vec::new();
 
     for event in parser {
         match event {
             Ok(XmlEvent::StartElement {name, attributes, ..}) => {
                 depth += 1;
-                current_tag = name.clone();
+
+                ancestor_stack.push(name.clone());
                 match name.local_name.as_str() {
                     "item" => {
                         if depth == MODULE_DEPTH {
@@ -110,19 +110,28 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
                         module_item_index += 1;
                     }
                 }
+                ancestor_stack.pop();
                 depth -= 1;
             }
             Ok(XmlEvent::Characters(chars)) => {
-                if current_tag.local_name.as_str() == "title" {
-                    if depth == MODULE_DEPTH + 1 {
-                        if let Some(module) = modules.get_mut(module_index) {
-                            module.title = Some(chars);
-                        }
-                    } else if depth == MODULE_ITEM_DEPTH + 1 {
-                        if let Some(module) = modules.get_mut(module_index) {
-                            if let Some(module_item) = module.items.get_mut(module_item_index) {
-                                module_item.title = Some(chars);
-                            }
+                let num_ancestors = ancestor_stack.len();
+                if num_ancestors < 2 {
+                    continue;
+                }
+
+                let current_tag = ancestor_stack.last().unwrap();
+                if current_tag.local_name.as_str() != "title" {
+                    continue;
+                }
+
+                if depth == MODULE_DEPTH + 1 {
+                    if let Some(module) = modules.get_mut(module_index) {
+                        module.title = Some(chars);
+                    }
+                } else if depth == MODULE_ITEM_DEPTH + 1 {
+                    if let Some(module) = modules.get_mut(module_index) {
+                        if let Some(module_item) = module.items.get_mut(module_item_index) {
+                            module_item.title = Some(chars);
                         }
                     }
                 }
