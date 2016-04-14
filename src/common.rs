@@ -5,10 +5,10 @@ pub struct Summary {
 }
 
 impl Summary {
-    pub fn new() -> Summary {
+    pub fn new(modules: Option<Vec<Module>>) -> Summary {
         Summary {
             general: None,
-            modules: None,
+            modules: modules,
         }
     }
 }
