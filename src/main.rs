@@ -28,7 +28,7 @@ pub fn process(path: &str) -> Result<common::Summary> {
     let f = try!(File::open(path));
     let zip_file = try!(zip::ZipArchive::new(f));
     let summary = try!(summarize::summarize(zip_file));
-    println!("Summary: {:?}", summary);
+    // println!("Summary: {:?}", summary);
     Ok(summary)
 }
 

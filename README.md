@@ -3,7 +3,10 @@ Comcart
 
 TODO:
 
- - Get "General" module specifics
+ - Refactor Sparse things to Builders
+ - Breakup manifest module into submodules
+ - Return General, Modules, and Resources from Manifest
+ - Find XML files for all resources
 
 Returns the following data:
 

@@ -19,7 +19,46 @@ impl Summary {
 pub struct General {
     pub title: String,
     pub description: String,
-    pub keyword: String,
+    pub copyright: String,
+}
+
+pub struct GeneralBuilder {
+    title: String,
+    description: String,
+    copyright: String,
+}
+
+impl GeneralBuilder {
+    pub fn new() -> GeneralBuilder {
+        GeneralBuilder {
+            title: "".to_string(),
+            description: "".to_string(),
+            copyright: "".to_string(),
+        }
+    }
+
+    pub fn title(&mut self, title: String) -> &mut GeneralBuilder {
+        self.title = title;
+        self
+    }
+
+    pub fn copyright(&mut self, copyright: String) -> &mut GeneralBuilder {
+        self.copyright = copyright;
+        self
+    }
+
+    pub fn description(&mut self, desc: String) -> &mut GeneralBuilder {
+        self.description = desc;
+        self
+    }
+
+    pub fn finalize(self) -> General {
+        General {
+            title: self.title,
+            description: self.description,
+            copyright: self.copyright,
+        }
+    }
 }
 
 #[derive(Debug)]

@@ -7,7 +7,7 @@ use xml::name::{OwnedName};
 
 use super::utils::Node;
 use super::utils::find_attr;
-use common::{Module, ModuleItem};
+use common::{Module, ModuleItem, GeneralBuilder};
 
 const MODULE_DEPTH: usize = 5;
 const MODULE_ITEM_DEPTH: usize = 6;
@@ -83,16 +83,41 @@ impl StackTracker {
             module_item_index: 0,
         }
     }
+
+    fn enter(&mut self, name: &OwnedName) {
+        self.depth += 1;
+        self.ancestors.push(name.clone());
+    }
+
+    fn leave(&mut self, name: &OwnedName) {
+        if name.local_name.as_str() == "item" {
+            match self.depth {
+                MODULE_DEPTH => {
+                    self.module_index += 1;
+                    self.module_item_index = 0;
+                }
+                MODULE_ITEM_DEPTH => {
+                    self.module_item_index += 1;
+                }
+                _ => {}
+            }
+        }
+        self.ancestors.pop();
+        self.depth -= 1;
+    }
 }
+
 
 struct ManifestData {
     modules: Vec<SparseModule>,
     resources: HashMap<String, Node>,
+    general: GeneralBuilder,
 }
 
 impl ManifestData {
     fn new() -> ManifestData {
         ManifestData {
+            general: GeneralBuilder::new(),
             modules: Vec::new(),
             resources: HashMap::new(),
         }
@@ -109,14 +134,14 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
             Ok(event_type) => {
                 match event_type {
                     XmlEvent::StartElement {name, attributes, ..} => {
-                        update_tracker_entering_element(&mut tracker, name.clone());
-                        save_element_data(&tracker, &mut data, Node::new(name, attributes));
+                        tracker.enter(&name);
+                        save_manifest_data(&tracker, &mut data, Node::new(name, attributes));
                     }
                     XmlEvent::EndElement {name} => {
-                        update_tracker_leaving_element(&mut tracker, name);
+                        tracker.leave(&name)
                     }
                     XmlEvent::Characters(chars) => {
-                        attach_titles(&tracker, &mut data, chars);
+                        collect_characters(&tracker, &mut data, chars);
                     }
                     _ => {}
                 }
@@ -129,10 +154,11 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
     }
     let sparse_modules = data.modules;
     let resources = data.resources;
+    println!("{:?}", data.general.finalize());
     sparse_modules.into_iter().map(|sparse_mod| sparse_mod.to_module(&resources)).collect::<Vec<Module>>()
 }
 
-fn save_element_data(tracker: &StackTracker, data: &mut ManifestData, node: Node) {
+fn save_manifest_data(tracker: &StackTracker, data: &mut ManifestData, node: Node) {
     match node.name.local_name.as_str() {
         "item" => {
             if tracker.depth == MODULE_DEPTH {
@@ -156,19 +182,6 @@ fn save_element_data(tracker: &StackTracker, data: &mut ManifestData, node: Node
 }
 
 fn attach_titles(tracker: &StackTracker, data: &mut ManifestData, chars: String) {
-    let num_ancestors = tracker.ancestors.len();
-    if num_ancestors < 2 {
-        return;
-    }
-
-    let current_tag = tracker.ancestors.last().unwrap();
-    let parent_tag = tracker.ancestors.get(num_ancestors - 2).unwrap();
-
-    if current_tag.local_name.as_str() != "title"
-        || parent_tag.local_name.as_str() != "item"{
-        return;
-    }
-
     if tracker.depth == MODULE_DEPTH + 1 {
         if let Some(module) = data.modules.get_mut(tracker.module_index) {
             module.title = Some(chars);
@@ -182,24 +195,42 @@ fn attach_titles(tracker: &StackTracker, data: &mut ManifestData, chars: String)
     }
 }
 
-fn update_tracker_entering_element(tracker: &mut StackTracker, name: OwnedName) {
-    tracker.depth += 1;
-    tracker.ancestors.push(name.clone());
-}
-
-fn update_tracker_leaving_element(tracker: &mut StackTracker, name: OwnedName) {
-    if name.local_name.as_str() == "item" {
-        match tracker.depth {
-            MODULE_DEPTH => {
-                tracker.module_index += 1;
-                tracker.module_item_index = 0;
-            }
-            MODULE_ITEM_DEPTH => {
-                tracker.module_item_index += 1;
-            }
-            _ => {}
+fn find_general_data(category: &OwnedName, current_tag: &OwnedName, parent_tag: &OwnedName, data: &mut ManifestData, chars: String) {
+    if category.local_name.as_str() == "general" {
+        if parent_tag.local_name.as_str() == "title" && current_tag.local_name.as_str() == "string" {
+            data.general.title(chars);
+        } else if parent_tag.local_name.as_str() == "description" && current_tag.local_name.as_str() == "string" {
+            data.general.description(chars);
+        }
+    } else if category.local_name.as_str() == "rights" {
+        if parent_tag.local_name.as_str() == "description" && current_tag.local_name.as_str() == "string" {
+            data.general.copyright(chars);
         }
     }
-    tracker.ancestors.pop();
-    tracker.depth -= 1;
+}
+
+fn collect_characters(tracker: &StackTracker, data: &mut ManifestData, chars: String) {
+    let num_ancestors = tracker.ancestors.len();
+    if num_ancestors < 2 {
+        return;
+    }
+
+    let current_tag = tracker.ancestors.last().unwrap();
+    let parent_tag = tracker.ancestors.get(num_ancestors - 2).unwrap();
+
+    if current_tag.local_name.as_str() == "title" && parent_tag.local_name.as_str() == "item" {
+        attach_titles(tracker, data, chars);
+        return;
+    }
+
+    if num_ancestors < 4 {
+        return;
+    }
+
+    let lom = tracker.ancestors.get(num_ancestors - 4).unwrap();
+    if lom.local_name.as_str() == "lom" {
+        let category = tracker.ancestors.get(num_ancestors - 3).unwrap();
+        find_general_data(category, current_tag, parent_tag, data, chars);
+        return;
+    }
 }
