@@ -1,71 +1,13 @@
+use common::{ModuleBuilder, ModuleItemBuilder, Manifest, ManifestBuilder};
 use std::io::{BufReader};
-use std::collections::HashMap;
-
-use zip::read::{ZipFile};
-use xml::reader::{EventReader, XmlEvent};
-use xml::name::{OwnedName};
-
 use super::utils::Node;
 use super::utils::find_attr;
-use common::{Module, ModuleItem, GeneralBuilder};
+use xml::reader::{EventReader, XmlEvent};
+use xml::name::{OwnedName};
+use zip::read::{ZipFile};
 
 const MODULE_DEPTH: usize = 5;
 const MODULE_ITEM_DEPTH: usize = 6;
-
-#[derive(Debug)]
-pub struct SparseModuleItem {
-    pub title: Option<String>,
-    pub identifier_ref: Option<String>,
-}
-
-impl SparseModuleItem {
-    fn new(identifier_ref: Option<String>) -> SparseModuleItem {
-        SparseModuleItem {
-            title: None,
-            identifier_ref: identifier_ref,
-        }
-    }
-
-    fn to_module_item(self, resources: &HashMap<String, Node>) -> ModuleItem {
-        let title = self.title.unwrap_or("".to_string());
-        // TODO lookup type from string
-        let i_type = resources
-            .get(self.identifier_ref.unwrap().as_str())
-            .and_then(|resource| find_attr("type", &resource.attributes))
-            .unwrap_or("".to_string());
-        ModuleItem::new(title, i_type)
-    }
-}
-
-#[derive(Debug)]
-pub struct SparseModule {
-    pub title: Option<String>,
-    pub items: Vec<SparseModuleItem>,
-}
-
-impl SparseModule {
-    fn new() -> SparseModule {
-        SparseModule {
-            title: None,
-            items: Vec::new(),
-        }
-    }
-
-    fn to_module(self, resources: &HashMap<String, Node>) -> Module {
-        let title = self.title.unwrap_or("".to_string());
-        let items = self.items
-            .into_iter()
-            .filter_map(|s_item| {
-                if s_item.identifier_ref.is_some() {
-                    Some(s_item.to_module_item(resources))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<ModuleItem>>();
-        Module::new(title, items)
-    }
-}
 
 struct StackTracker {
     ancestors: Vec<OwnedName>,
@@ -107,26 +49,9 @@ impl StackTracker {
     }
 }
 
-
-struct ManifestData {
-    modules: Vec<SparseModule>,
-    resources: HashMap<String, Node>,
-    general: GeneralBuilder,
-}
-
-impl ManifestData {
-    fn new() -> ManifestData {
-        ManifestData {
-            general: GeneralBuilder::new(),
-            modules: Vec::new(),
-            resources: HashMap::new(),
-        }
-    }
-}
-
-pub fn parse(manifest: ZipFile) -> Vec<Module> {
+pub fn parse(manifest: ZipFile) -> Manifest {
     let mut tracker = StackTracker::new();
-    let mut data = ManifestData::new();
+    let mut data = ManifestBuilder::new();
     let buffer = BufReader::new(manifest);
 
     for event in EventReader::new(buffer) {
@@ -152,21 +77,21 @@ pub fn parse(manifest: ZipFile) -> Vec<Module> {
             }
         }
     }
-    let sparse_modules = data.modules;
-    let resources = data.resources;
-    println!("{:?}", data.general.finalize());
-    sparse_modules.into_iter().map(|sparse_mod| sparse_mod.to_module(&resources)).collect::<Vec<Module>>()
+    let manifest = data.finalize();
+    println!("{:?}", manifest.general);
+    manifest
 }
 
-fn save_manifest_data(tracker: &StackTracker, data: &mut ManifestData, node: Node) {
+fn save_manifest_data(tracker: &StackTracker, data: &mut ManifestBuilder, node: Node) {
     match node.name.local_name.as_str() {
         "item" => {
             if tracker.depth == MODULE_DEPTH {
-                data.modules.push(SparseModule::new());
+                data.modules.push(ModuleBuilder::new());
             } else if tracker.depth == MODULE_ITEM_DEPTH {
                 if let Some(module) = data.modules.get_mut(tracker.module_index) {
-                    let identifier_ref = find_attr("identifierref", &node.attributes);
-                    module.items.push(SparseModuleItem::new(identifier_ref));
+                    let mut module_item_builder = ModuleItemBuilder::new();
+                    module_item_builder.identifier_ref(find_attr("identifierref", &node.attributes));
+                    module.items.push(module_item_builder);
                 }
             }
         }
@@ -181,21 +106,21 @@ fn save_manifest_data(tracker: &StackTracker, data: &mut ManifestData, node: Nod
     }
 }
 
-fn attach_titles(tracker: &StackTracker, data: &mut ManifestData, chars: String) {
+fn attach_titles(tracker: &StackTracker, data: &mut ManifestBuilder, chars: String) {
     if tracker.depth == MODULE_DEPTH + 1 {
         if let Some(module) = data.modules.get_mut(tracker.module_index) {
-            module.title = Some(chars);
+            module.title(chars);
         }
     } else if tracker.depth == MODULE_ITEM_DEPTH + 1 {
         if let Some(module) = data.modules.get_mut(tracker.module_index) {
             if let Some(module_item) = module.items.get_mut(tracker.module_item_index) {
-                module_item.title = Some(chars);
+                module_item.title(chars);
             }
         }
     }
 }
 
-fn find_general_data(category: &OwnedName, current_tag: &OwnedName, parent_tag: &OwnedName, data: &mut ManifestData, chars: String) {
+fn find_general_data(category: &OwnedName, current_tag: &OwnedName, parent_tag: &OwnedName, data: &mut ManifestBuilder, chars: String) {
     if category.local_name.as_str() == "general" {
         if parent_tag.local_name.as_str() == "title" && current_tag.local_name.as_str() == "string" {
             data.general.title(chars);
@@ -209,7 +134,7 @@ fn find_general_data(category: &OwnedName, current_tag: &OwnedName, parent_tag: 
     }
 }
 
-fn collect_characters(tracker: &StackTracker, data: &mut ManifestData, chars: String) {
+fn collect_characters(tracker: &StackTracker, data: &mut ManifestBuilder, chars: String) {
     let num_ancestors = tracker.ancestors.len();
     if num_ancestors < 2 {
         return;
