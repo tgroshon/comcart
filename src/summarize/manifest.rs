@@ -78,7 +78,6 @@ pub fn parse(manifest: ZipFile) -> Manifest {
         }
     }
     let manifest = builder.finalize();
-    println!("{:?}", manifest.resources);
     manifest
 }
 
