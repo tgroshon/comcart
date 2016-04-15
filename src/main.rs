@@ -1,5 +1,7 @@
-extern crate zip;
+#[macro_use] extern crate lazy_static;
+extern crate regex;
 extern crate xml;
+extern crate zip;
 
 use std::io::{Result};
 use std::fs::File;

@@ -3,7 +3,6 @@ Comcart
 
 TODO:
 
- - Parse pretty type from long-form type on resources
  - Get "General" module specifics
 
 Returns the following data:

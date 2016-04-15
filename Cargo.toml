@@ -12,5 +12,7 @@ authors = ["Tommy Groshong <tgroshong@instructure.com>"]
 # path = "src/main.rs"
 
 [dependencies]
-zip = "0.1.16"
+lazy_static = "0.2.0"
+regex = "0.1"
 xml-rs = "0.3.0"
+zip = "0.1.16"
