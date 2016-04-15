@@ -48,15 +48,15 @@ impl ManifestBuilder {
 
 #[derive(Debug)]
 pub struct Summary {
-    pub general: Option<General>,
-    pub modules: Option<Vec<Module>>,
+    pub general: General,
+    pub modules: Vec<Module>,
 }
 
 impl Summary {
-    pub fn new(modules: Option<Vec<Module>>) -> Summary {
+    pub fn new(manifest: Manifest) -> Summary {
         Summary {
-            general: None,
-            modules: modules,
+            general: manifest.general,
+            modules: manifest.modules,
         }
     }
 }
