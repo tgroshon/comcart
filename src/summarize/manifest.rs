@@ -55,8 +55,13 @@ impl SparseModule {
         let title = self.title.unwrap_or("".to_string());
         let items = self.items
             .into_iter()
-            .filter(|s_item| s_item.identifier_ref.is_some())
-            .map(|s_item| s_item.to_module_item(resources))
+            .filter_map(|s_item| {
+                if s_item.identifier_ref.is_some() {
+                    Some(s_item.to_module_item(resources))
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<ModuleItem>>();
         Module::new(title, items)
     }
