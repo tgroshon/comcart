@@ -1,19 +1,20 @@
 use regex::Regex;
 use std::collections::HashMap;
-use summarize::utils::{find_attr, Node};
+use summarize::utils::{find_attr};
+use xml::attribute::{OwnedAttribute};
 
 #[derive(Debug)]
 pub struct Manifest {
     pub general: General,
     pub modules: Vec<Module>,
-    pub resources: HashMap<String, Node>,
+    pub resources: Vec<Resource>,
 }
 
 #[derive(Debug)]
 pub struct ManifestBuilder {
     pub general: GeneralBuilder,
     pub modules: Vec<ModuleBuilder>,
-    pub resources: HashMap<String, Node>,
+    pub resources_map: HashMap<String, Resource>,
 }
 
 impl ManifestBuilder {
@@ -21,22 +22,26 @@ impl ManifestBuilder {
         ManifestBuilder {
             general: GeneralBuilder::new(),
             modules: Vec::new(),
-            resources: HashMap::new(),
+            resources_map: HashMap::new(),
         }
     }
     pub fn finalize(self) -> Manifest {
         let mut modules: Vec<Module> = Vec::new();
-        // TODO: Figure out how to do this without scope hackery
         {
-            let ref resources = self.resources;
             for builder in self.modules.into_iter() {
-                modules.push(builder.finalize(resources));
+                modules.push(builder.finalize(&self.resources_map));
             }
         }
+        let resources = self.resources_map
+            .into_iter()
+            .fold(Vec::new(), |mut acc, (_, val)| {
+                acc.push(val);
+                acc
+            });
         Manifest {
             general: self.general.finalize(),
             modules: modules,
-            resources: self.resources,
+            resources: resources,
         }
     }
 }
@@ -111,11 +116,10 @@ pub struct ModuleItem {
 }
 
 impl ModuleItem {
-    pub fn new(title: String, i_type: String) -> ModuleItem {
-        let item_type = typestr_to_enum(i_type.as_str());
+    pub fn new(title: String, i_type: ItemType) -> ModuleItem {
         ModuleItem {
             title: title,
-            item_type: item_type,
+            item_type: i_type,
         }
     }
 }
@@ -161,7 +165,7 @@ impl Module {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ItemType {
     Assignment,
     Assessment,
@@ -191,7 +195,7 @@ impl ModuleBuilder {
         self
     }
 
-    pub fn finalize(self, resources: &HashMap<String, Node>) -> Module {
+    pub fn finalize(self, resources: &HashMap<String, Resource>) -> Module {
         let items = self.items
             .into_iter()
             .filter_map(|s_item| {
@@ -213,10 +217,10 @@ pub struct ModuleItemBuilder {
 }
 
 impl ModuleItemBuilder {
-    pub fn new() -> ModuleItemBuilder {
+    pub fn new(i_ref: Option<String>) -> ModuleItemBuilder {
         ModuleItemBuilder {
             title: "".to_string(),
-            identifier_ref: "".to_string(),
+            identifier_ref: i_ref.unwrap_or("".to_string()),
         }
     }
 
@@ -225,19 +229,32 @@ impl ModuleItemBuilder {
         self
     }
 
-    pub fn identifier_ref(&mut self, i_ref: Option<String>) -> &mut ModuleItemBuilder {
-        if i_ref.is_none() {
-            return self;
-        }
-        self.identifier_ref = i_ref.unwrap();
-        self
-    }
-
-    pub fn finalize(self, resources: &HashMap<String, Node>) -> ModuleItem {
+    pub fn finalize(self, resources: &HashMap<String, Resource>) -> ModuleItem {
         let i_type = resources
             .get(self.identifier_ref.as_str())
-            .and_then(|resource| find_attr("type", &resource.attributes))
-            .unwrap_or("".to_string());
+            .map_or(ItemType::NoType, |resource| resource.item_type.clone());
         ModuleItem::new(self.title, i_type)
+    }
+}
+
+#[derive(Debug)]
+pub struct Resource {
+    pub href: Option<String>,
+    pub identifier: String,
+    pub item_type: ItemType,
+}
+
+impl Resource {
+    pub fn new (attrs: &Vec<OwnedAttribute>) -> Resource {
+        let item_type = typestr_to_enum(find_attr("type", attrs).unwrap_or("".to_string()).as_str());
+        let identifier = match find_attr("identifier", attrs) {
+            Some(ident) => ident,
+            None => panic!("Malformed Manifest! A resource does not have an identifier.")
+        };
+        Resource {
+            href: find_attr("href", attrs),
+            identifier: identifier,
+            item_type: item_type,
+        }
     }
 }
