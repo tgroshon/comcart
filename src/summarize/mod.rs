@@ -8,8 +8,7 @@ use common::{Summary, Resource, ItemType};
 
 pub fn summarize<R: Read + Seek>(mut archive: ZipArchive<R>) -> Result<Summary> {
     let manifest = manifest::parse(try!(archive.by_name("imsmanifest.xml")));
-
-    lookup_resources(&mut archive, &manifest.resources);
+    // lookup_resources(&mut archive, &manifest.resources);
 
     let summary = Summary::new(manifest);
     Ok(summary)
