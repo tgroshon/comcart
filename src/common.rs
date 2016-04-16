@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use summarize::utils;
-use xml::attribute::{OwnedAttribute};
+use xml::name::OwnedName;
 
 #[derive(Debug)]
 pub struct Manifest {
@@ -218,16 +218,22 @@ pub struct Resource {
 }
 
 impl Resource {
-    pub fn new (attrs: &Vec<OwnedAttribute>) -> Resource {
-        let item_type = utils::typestr_to_type(utils::find_attr("type", attrs).unwrap_or("".to_string()).as_str());
-        let identifier = match utils::find_attr("identifier", attrs) {
+    pub fn new (node: &utils::Node) -> Resource {
+        let item_type = utils::typestr_to_type(node.find("type").unwrap_or("".to_string()).as_str());
+        let identifier = match node.find("identifier") {
             Some(ident) => ident,
             None => panic!("Malformed Manifest! A resource does not have an identifier.")
         };
         Resource {
-            href: utils::find_attr("href", attrs),
+            href: node.find("href"),
             identifier: identifier,
             item_type: item_type,
         }
     }
+}
+
+pub trait ParseHandler {
+    fn enter(&mut self, node: utils::Node);
+    fn leave(&mut self,  name: OwnedName);
+    fn receive_chars(&mut self, chars: String);
 }

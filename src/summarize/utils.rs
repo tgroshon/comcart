@@ -1,9 +1,11 @@
-use common::ItemType;
+use common::{ItemType, ParseHandler};
+use std::io::{Read};
 use regex::Regex;
 use xml::name::{OwnedName};
 use xml::attribute::{OwnedAttribute};
+use xml::reader::{EventReader, XmlEvent};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Node {
     pub name: OwnedName,
     pub attributes: Vec<OwnedAttribute>
@@ -16,15 +18,23 @@ impl Node {
             attributes: attrs
         }
     }
-}
 
-pub fn find_attr(key: &str, attrs: &Vec<OwnedAttribute>) -> Option<String> {
-    for attr in attrs {
-        if attr.name.local_name.as_str() == key {
-            return Some(attr.value.clone());
-        }
+    pub fn name_str(&self) -> &str {
+        &self.name.local_name.as_str()
     }
-    None
+
+    pub fn has_name(&self, str: &str) -> bool {
+        self.name_str() == str
+    }
+
+    pub fn find(&self, key: &str) -> Option<String> {
+        for attr in &self.attributes {
+            if attr.name.local_name.as_str() == key {
+                return Some(attr.value.clone());
+            }
+        }
+        None
+    }
 }
 
 pub fn typestr_to_type(i_type: &str) -> ItemType {
@@ -50,5 +60,33 @@ pub fn typestr_to_type(i_type: &str) -> ItemType {
         ItemType::WebLink
     } else {
         ItemType::Unknown{ type_string: i_type.to_string() }
+    }
+}
+
+pub const MODULE_DEPTH: usize = 5;
+pub const MODULE_ITEM_DEPTH: usize = 6;
+
+pub fn handle_parse<R: Read, H: ParseHandler>(buffer: R, handler: &mut H) {
+    for event in EventReader::new(buffer) {
+        match event {
+            Ok(event_type) => {
+                match event_type {
+                    XmlEvent::StartElement {name, attributes, ..} => {
+                        handler.enter(Node::new(name, attributes));
+                    }
+                    XmlEvent::EndElement {name} => {
+                        handler.leave(name);
+                    }
+                    XmlEvent::Characters(chars) => {
+                        handler.receive_chars(chars);
+                    }
+                    _ => {}
+                }
+            }
+            Err(e) => {
+                println!("Error: {}", e);
+                break;
+            }
+        }
     }
 }
