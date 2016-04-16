@@ -1,49 +1,25 @@
-use common::{ModuleBuilder, ModuleItemBuilder, Manifest, ManifestBuilder, Resource, ParseHandler};
-use std::io::{BufReader};
-use super::utils::{Node, handle_parse, MODULE_DEPTH, MODULE_ITEM_DEPTH};
-use xml::name::{OwnedName};
-use zip::read::{ZipFile};
+use common::{ Manifest, ManifestBuilder, ModuleBuilder, ModuleItemBuilder, Resource, ParseHandler };
+use summarize::utils::{Node, MODULE_DEPTH, MODULE_ITEM_DEPTH};
+use super::index_tracker::ModuleIndexTracker;
+use xml::name::OwnedName;
 
-struct ModuleIndexTracker {
-    module_index: usize,
-    module_item_index: usize,
-}
-
-impl ModuleIndexTracker {
-    fn new() -> ModuleIndexTracker {
-        ModuleIndexTracker {
-            module_index: 0,
-            module_item_index: 0,
-        }
-    }
-
-    fn step(&mut self, depth: usize) {
-        match depth {
-            MODULE_DEPTH => {
-                self.module_index += 1;
-                self.module_item_index = 0;
-            }
-            MODULE_ITEM_DEPTH => {
-                self.module_item_index += 1;
-            }
-            _ => {}
-        }
-    }
-}
-
-struct ManifestHandler {
-    builder: ManifestBuilder,
-    index_tracker: ModuleIndexTracker,
-    stack: Vec<Node>,
+pub struct ManifestHandler {
+    pub builder: ManifestBuilder,
+    pub index_tracker: ModuleIndexTracker,
+    pub stack: Vec<Node>,
 }
 
 impl ManifestHandler {
-    fn new() -> ManifestHandler {
+    pub fn new() -> ManifestHandler {
         ManifestHandler {
             builder: ManifestBuilder::new(),
             index_tracker: ModuleIndexTracker::new(),
             stack: Vec::new(),
         }
+    }
+
+    pub fn finalize_manifest(self) -> Manifest {
+        self.builder.finalize()
     }
 
     fn new_module_builder(&mut self) {
@@ -128,14 +104,6 @@ impl ParseHandler for ManifestHandler {
             return;
         }
     }
-}
-
-pub fn parse(manifest: ZipFile) -> Manifest {
-    let buffer = BufReader::new(manifest);
-    let mut handler = ManifestHandler::new();
-    handle_parse(buffer, &mut handler);
-    let manifest = handler.builder.finalize();
-    manifest
 }
 
 fn attach_titles(handler: &mut ManifestHandler, chars: String) {
