@@ -1,5 +1,4 @@
 mod handler;
-mod builder;
 mod index_tracker;
 
 use common::{ Manifest };
