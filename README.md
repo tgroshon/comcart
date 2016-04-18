@@ -1,25 +1,35 @@
 Comcart
 =======
 
-TODO:
+Parse a common cartridge archive and return a summary of the contents.
 
- - Breakup manifest module into submodules
- - Find XML files for all resources
+*Note: Modeled after the Instructure implementation of Common Cartridges*
 
-Returns the following data:
+Returns a summary struct of following data:
 
  - general
    - title
    - description
    - keyword
    - copyright
+ - modules
+   - title
+   - items
+
+Coming soon:
+
+ - assignments
+ - assessments (quizzes)
+ - discussion topics
+ - pages (web content)
  - outcomes
- - resources
-   - assignments
-   - assessments (quizzes)
-   - discussion topics
-   - pages (web content)
-   - web links
+ - web links
+
+## Development ##
+
+TODO:
+
+ - Read XML files for all resources
 
 Resource type patterns:
 

@@ -1,7 +1,13 @@
 [package]
 name = "comcart"
 version = "0.1.0"
+description = "Common Cartridge file summarization library"
 authors = ["Tommy Groshong <tgroshong@instructure.com>"]
+repository = "https://github.com/tgroshon/comcart"
+keywords = ["common cartridge", "education"]
+readme = "README.md"
+license = "MIT"
+exclude = [ ".git/*" ]
 
 [lib]
 name = "comcart"
